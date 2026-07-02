@@ -50,38 +50,70 @@ def val_build_project() -> (Path, Path):
     return path_in, path_out
 
 
-def get_hg_38_file_paths(target_path: Path) -> list:
-    return list(target_path.rglob("*__hg_38__RCM.csv"))
-
-
 def get_hg_38_desc_paths(target_path: Path) -> dict:
-    return {p.stem: p for p in target_path.rglob("*__hg_38.txt")}
+    """
+    These fetched .txt files correlate to .csv RCM files --> describe normal cells within the datasets.
+    """
+    return {p.stem: p for p in target_path.rglob("*__hg_38__describe.csv")}
 
 
-# add decorator for performance
-def run_infercnv(path_target: Path,
-                path_out_data: Path,
-                n_cores: int = 10,
-                n_genes_chr: int = 5,
-                perc_genes: int = 10,
-                beta_vega: float = 0.5,
-                cell_pre_label: bool = False):
-    list_paths_target_csvs = get_hg_38_file_paths(path_target)
-    if cell_pre_label:
-        dict_paths_target_txts = get_hg_38_desc_paths(path_target)
-        list_paths_target_csvs = [p for p in list_paths_target_csvs if p.stem.split("__RCM")[0] in dict_paths_target_txts.keys()]
-    for p in list_paths_target_csvs:
-        name_tag = f"{p.stem}__n,{n_cores};n,{n_genes_chr};p,{perc_genes};b,{beta_vega};c,{cell_pre_label}__scevan_"
-        path_out_target = path_out_data / f"out__{name_tag}"
-        path_out_target.mkdir(parents=True, exist_ok=True)
+def csvs_to_adatas(target_path: Path, precise_annotation: bool = False) -> dict:
+    """
+    Generates a dictionary with adata and their respective reference catalogue of normal cells (cell_names).
+    """
+    dict_hg38_desc = get_hg_38_desc_paths(target_path)
+    dict_accepted_files = {}
+    for k, path_desc in dict_hg38_desc.items():
+        path_rcm = Path(target_path) / f"{k.replace("__describe", "")}__RCM.csv"
+        if path_rcm.exists():
+            adata = sc.read_csv(path_rcm).T
+            obs_desc_df = pd.read_csv(path_desc, index_col="cell_id").loc[list(adata.obs.index),:]
+            adata.obs = obs_desc_df
+            if precise_annotation:
+                list_cell_type = list(adata.obs["cell_type"].unique())
+                list_cell_type.remove("Tumor")
+                dict_accepted_files[k.replace("__describe", "")] = {"adata": adata,
+                                          "reference_key": "cell_type",
+                                          "reference_cat":list_cell_type}
+            else:
+                dict_accepted_files[k.replace("__describe", "")] = {"adata": adata,
+                                          "reference_key": "cell_category",
+                                          "reference_cat":["Normal"]}
+    return dict_accepted_files
 
-        norm_cell_vector = robjects.NULL
-        if cell_pre_label:
-            path_txt = dict_paths_target_txts[p.stem.split("__RCM")[0]]   # normal cells split by \n
-            with open(path_txt, "r") as f:
-                list_norm_cells = list(map(lambda x: x.replace("\n", ""), f.readlines()))
-                norm_cell_vector = robjects.vectors.StrVector(list_norm_cells)
 
+def run_py_infercnv(path_target: Path, path_out_data: Path, kwargs: dict = {}) -> None:
+    """
+    Main function for running infercnvpy for benchmarking.
+
+    Parameters
+    ----------
+    path_target: Path
+        Directory with all datasets for benchmarking.
+    path_out_data: Path
+        Directory where to save the results for benchmarking.
+    kwargs: dict
+        Key-word-arguments (= kwargs) for infercnvpy.tl.infercnv() function.
+
+    Returns
+    -------
+    pd.DataFrame
+        Returns inferred copy number variations as table.
+    """
+    kwargs_infercnvpy = kwargs.copy()
+    if not "precise_annotation" in kwargs:
+        precise_annotation = False
+    else:
+        precise_annotation = kwargs["precise_annotation"]
+        del kwargs_infercnvpy["precise_annotation"]
+    dict_files = csvs_to_adatas(path_target, precise_annotation)
+    for tag_dataset, dict_data in dict_files.items():
+        str_kwargs = random_sequence(len_seq=8)
+        file_name = f"{tag_dataset}__{str_kwargs}__infercnvpy"
+        data_save_path = path_out_data / file_name
+        data_save_path.mkdir(exist_ok=True)
+
+        adata = dict_data["adata"]
         @benchmark_method(str(path_out_target))
         def run_rscript(p,
                         name_tag,
@@ -102,39 +134,10 @@ def run_infercnv(path_target: Path,
                     perc_genes,
                     beta_vega)
 
-        # generate a csv-matrix for the CNA-output
-        path_cnv_rdata = [p for p in Path("./output").glob("*__scevan__CNAmtx.RData")][0]
-        df_cnv = rdata.read_rds(path_cnv_rdata)["CNA_mtx_relat"].to_pandas()
-        path_annot_rdata = [p for p in Path("./output").glob("*__scevan__count_mtx_annot.RData")][0]
-        df_pos = rdata.read_rds(path_annot_rdata)['count_mtx_annot'].set_index("gene_name").drop("gene_id", axis=1).rename({"seqnames":"CHR", "start":"START", "end":"END"}, axis=1).astype(int)
-        df_concat = pd.concat([df_pos, df_cnv], axis=1).set_index("CHR")
-        df_concat.to_csv(Path.cwd() / f"{name_tag}_GBC.csv")
-
-        list_all_nametag_items = [p for p in Path.cwd().glob(f"*{name_tag}*")]
-        for items in list_all_nametag_items:
-            shutil.move(items, path_out_target / items.name)
-        shutil.move("output", path_out_target / "output")
-
-
-if __name__ == "__main__":
-    # matrix of possible scevan hyperparameter kwargs
-    # 0 for beta_vega not allowed (comparable to copykat's KS.cut)
-    kwargs_gridsearch = {
-        "n_cores": [5, 10, 20],
-        "n_genes_chr": [1, 5, 10, 100],
-        "perc_genes": [0, 5, 10, 20, 30],
-        "beta_vega": [0.1, 0.5, 1, 2, 3, 4],
-        "cell_pre_label": [True, False]
-    }
-
-    path_in, path_out = val_build_project()
-    run_infercnv(path_in, path_out, n_cores=1, cell_pre_label=False)
-    run_infercnv(path_in, path_out, n_cores=1, cell_pre_label=True)  # standard parameters; one core
-    list_kwargs = grid_by_dict(kwargs_gridsearch)
-
-    for kwarg_opt in list_kwargs:
-        print(f"SCEVAN running with hyperparameters: {kwarg_opt}")
-        run_infercnv(path_in, path_out, **kwarg_opt)
-
-
-
+        list_normal_cells = list(adata.obs.where(adata.obs["cell_category"] == "Normal").dropna().index)
+        with open(data_save_path / f"{file_name}__normal_cells.txt", "w") as f:
+            f.write("\n".join(list_normal_cells))
+        cnv_idx = list(adata.obs.index)
+        df_csv_pre = pd.DataFrame(data=adata.layers["gene_values_cnv"], index=cnv_idx).T
+        df_csv = pd.concat([adata.var.reset_index(), df_csv_pre], axis=1).dropna().drop("index", axis=1).set_index("gene_name")
+        df_csv.to_csv(data_save_path / f"{file_name}.csv")
