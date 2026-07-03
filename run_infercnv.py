@@ -112,62 +112,59 @@ def run_r_infercnv(path_target: Path, path_out_data: Path, kwargs: dict = {}) ->
         data_save_path = path_out_data / file_name
         data_save_path.mkdir(exist_ok=True)
 
-        @benchmark_method(str(path_out_target))
-        def run_rscript(p,
-                        name_tag,
-                        n_cores,
-                        norm_cell_vector,
-                        n_genes_chr,
-                        perc_genes,
-                        beta_vega):
+        @benchmark_method(str(data_save_path))
+        def run_rscript(path_file,
+                        out_dir,
+                        sample_tag,
+                        annotations_file,
+                        gene_order_file_path,
+                        ref_group_names,
+                        kwargs):
             r = robjects.r
             r.source("c_infercnvR.R")
-            r.r_run_infercnv(str(p), name_tag, n_cores, norm_cell_vector, n_genes_chr, perc_genes, beta_vega)
+            r.r_run_infercnv(path_file,
+                             out_dir,
+                             sample_tag,
+                             annotations_file,
+                             gene_order_file_path,
+                             ref_group_names, **kwargs)
 
-        run_rscript(p,
-                    name_tag,
-                    n_cores,
-                    norm_cell_vector,
-                    n_genes_chr,
-                    perc_genes,
-                    beta_vega)
+        run_rscript(data_save_path,
+                    file_name,
+                    gene_order_file_path=Path(__file__).parent / "genome_data" / "hg38_gencode_v27.txt",
+                    kwargs=kwargs)
 
 
 if __name__ == "__main__":
-
+    #robjects.vectors.BoolVector([True])
     # matrix of possible infercnvR hyperparameter kwargs
     kwargs_gridsearch = {
                         "cutoff":[0.1, 0.5, 1.0],
                         "min_cells_per_gene":[1, 3, 10, 25],
                         "window_length":[10, 25, 101, 200],
-                        "smooth_method" = "pyramidinal",
-                        ref_subtract_use_mean_bounds = TRUE,
-                        cluster_by_groups = FALSE,
-                        cluster_references = TRUE,
-                        k_obs_groups = 1,
-                        max_centered_threshold = 3,
-                        HMM = FALSE,
-                        HMM_report_by = "subcluster",
-                        HMM_type = "i6",
-                        BayesMaxPNormal = 0.5,
-                        sim_method = "meanvar",
-                        sim_foreground = FALSE,
-                        reassignCNVs = TRUE,
-                        analysis_mode = "samples",
-                        tumor_subcluster_partition_method = "random_trees",
-                        tumor_subcluster_pval = 0.1,
-                        denoise = FALSE,
-                        sd_amplifier = 1.5,
-                        noise_logistic = FALSE,
-                        num_threads = 4,
-                        plot_steps = FALSE,
-                        resume_mode = TRUE,
-                        png_res = 300,
-                        plot_probabilities = TRUE,
-                        prune_outliers = FALSE,
-                        require_DE_all_normals = "any",
-                        hspike_aggregate_normals = FALSE,
-                        up_to_step = 100)
+                        "smooth_method":["pyramidinal", "runmeans, coordinates"],
+                        "ref_subtract_use_mean_bounds":[True, False],
+                        "cluster_by_groups":[True, False],
+                        "cluster_references":[True, False],
+                        "k_obs_groups":[1],
+                        "max_centered_threshold":[3],
+                        "HMM":[True, False],
+                        "HMM_report_by":["subcluster", "cell", "consensus"],
+                        "HMM_type":["i6", "i3"],
+                        "BayesMaxPNormal":[0.3, 0.5, 0.7],
+                        "sim_method":["meanvar"],
+                        "sim_foreground":[True, False],
+                        "reassignCNVs":[True, False],
+                        "analysis_mode":["samples", "subclusters", "cells"],
+                        "tumor_subcluster_partition_method":["random_trees","qnorm"],
+                        "tumor_subcluster_pval":[0.05, 0.1, 0.2],
+                        "denoise": [True, False],
+                        "sd_amplifier":[1, 1.5, 2],
+                        "noise_logistic":[True, False],
+                        "num_threads":[50],
+                        "plot_steps":[True, False],
+                        "hspike_aggregate_normals":[True, False],
+                        "up_to_step":[100]
     }
 
     path_in, path_out = val_build_project()
