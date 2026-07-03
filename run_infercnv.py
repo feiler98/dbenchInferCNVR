@@ -6,7 +6,6 @@
 import rpy2.robjects as robjects
 from pathlib import Path
 import rdata
-import shutil
 import pandas as pd
 from pyomics.utils import benchmark_method
 import itertools
@@ -82,7 +81,7 @@ def csvs_to_adatas(target_path: Path, precise_annotation: bool = False) -> dict:
     return dict_accepted_files
 
 
-def run_py_infercnv(path_target: Path, path_out_data: Path, kwargs: dict = {}) -> None:
+def run_r_infercnv(path_target: Path, path_out_data: Path, kwargs: dict = {}) -> None:
     """
     Main function for running infercnvpy for benchmarking.
 
@@ -109,11 +108,10 @@ def run_py_infercnv(path_target: Path, path_out_data: Path, kwargs: dict = {}) -
     dict_files = csvs_to_adatas(path_target, precise_annotation)
     for tag_dataset, dict_data in dict_files.items():
         str_kwargs = random_sequence(len_seq=8)
-        file_name = f"{tag_dataset}__{str_kwargs}__infercnvpy"
+        file_name = f"{tag_dataset}__{str_kwargs}__infercnvr"
         data_save_path = path_out_data / file_name
         data_save_path.mkdir(exist_ok=True)
 
-        adata = dict_data["adata"]
         @benchmark_method(str(path_out_target))
         def run_rscript(p,
                         name_tag,
@@ -134,10 +132,46 @@ def run_py_infercnv(path_target: Path, path_out_data: Path, kwargs: dict = {}) -
                     perc_genes,
                     beta_vega)
 
-        list_normal_cells = list(adata.obs.where(adata.obs["cell_category"] == "Normal").dropna().index)
-        with open(data_save_path / f"{file_name}__normal_cells.txt", "w") as f:
-            f.write("\n".join(list_normal_cells))
-        cnv_idx = list(adata.obs.index)
-        df_csv_pre = pd.DataFrame(data=adata.layers["gene_values_cnv"], index=cnv_idx).T
-        df_csv = pd.concat([adata.var.reset_index(), df_csv_pre], axis=1).dropna().drop("index", axis=1).set_index("gene_name")
-        df_csv.to_csv(data_save_path / f"{file_name}.csv")
+
+if __name__ == "__main__":
+
+    # matrix of possible infercnvR hyperparameter kwargs
+    kwargs_gridsearch = {
+                        "cutoff":[0.1, 0.5, 1.0],
+                        "min_cells_per_gene":[1, 3, 10, 25],
+                        "window_length":[10, 25, 101, 200],
+                        "smooth_method" = "pyramidinal",
+                        ref_subtract_use_mean_bounds = TRUE,
+                        cluster_by_groups = FALSE,
+                        cluster_references = TRUE,
+                        k_obs_groups = 1,
+                        max_centered_threshold = 3,
+                        HMM = FALSE,
+                        HMM_report_by = "subcluster",
+                        HMM_type = "i6",
+                        BayesMaxPNormal = 0.5,
+                        sim_method = "meanvar",
+                        sim_foreground = FALSE,
+                        reassignCNVs = TRUE,
+                        analysis_mode = "samples",
+                        tumor_subcluster_partition_method = "random_trees",
+                        tumor_subcluster_pval = 0.1,
+                        denoise = FALSE,
+                        sd_amplifier = 1.5,
+                        noise_logistic = FALSE,
+                        num_threads = 4,
+                        plot_steps = FALSE,
+                        resume_mode = TRUE,
+                        png_res = 300,
+                        plot_probabilities = TRUE,
+                        prune_outliers = FALSE,
+                        require_DE_all_normals = "any",
+                        hspike_aggregate_normals = FALSE,
+                        up_to_step = 100)
+    }
+
+    path_in, path_out = val_build_project()
+    list_kwargs = grid_by_dict(kwargs_gridsearch)
+    for kwarg_opt in list_kwargs:
+        print(f"InferCNV (R) running with hyperparameters: {kwarg_opt}")
+        run_r_infercnv(path_in, path_out, kwargs=kwarg_opt)
