@@ -7,11 +7,15 @@ import rpy2.robjects as robjects
 from pathlib import Path
 import rdata
 import pandas as pd
-from pyomics.utils import benchmark_method
+from utility import benchmark_method
 import itertools
 import random
 import string
 # ----------------------------------------------------------------------------------------------------------------------
+
+def convert_bool_to_robject(bool_val: bool) -> robjects.vectors.BoolVector:
+    return robjects.vectors.BoolVector([bool_val])
+
 
 def random_sequence(len_seq: int) -> str:
     list_signs = []
@@ -138,34 +142,32 @@ def run_r_infercnv(path_target: Path, path_out_data: Path, kwargs: dict = {}) ->
 if __name__ == "__main__":
     #robjects.vectors.BoolVector([True])
     # matrix of possible infercnvR hyperparameter kwargs
-    kwargs_gridsearch = {
-                        "cutoff":[0.1, 0.5, 1.0],
-                        "min_cells_per_gene":[1, 3, 10, 25],
-                        "window_length":[10, 25, 101, 200],
-                        "smooth_method":["pyramidinal", "runmeans, coordinates"],
-                        "ref_subtract_use_mean_bounds":[True, False],
-                        "cluster_by_groups":[True, False],
-                        "cluster_references":[True, False],
-                        "k_obs_groups":[1],
-                        "max_centered_threshold":[3],
-                        "HMM":[True, False],
-                        "HMM_report_by":["subcluster", "cell", "consensus"],
-                        "HMM_type":["i6", "i3"],
-                        "BayesMaxPNormal":[0.3, 0.5, 0.7],
-                        "sim_method":["meanvar"],
-                        "sim_foreground":[True, False],
-                        "reassignCNVs":[True, False],
-                        "analysis_mode":["samples", "subclusters", "cells"],
-                        "tumor_subcluster_partition_method":["random_trees","qnorm"],
-                        "tumor_subcluster_pval":[0.05, 0.1, 0.2],
-                        "denoise": [True, False],
-                        "sd_amplifier":[1, 1.5, 2],
-                        "noise_logistic":[True, False],
-                        "num_threads":[50],
-                        "plot_steps":[True, False],
-                        "hspike_aggregate_normals":[True, False],
-                        "up_to_step":[100]
-    }
+    kwargs_gridsearch = {"cutoff":[0.1, 0.5, 1.0],
+                         "min_cells_per_gene":[1, 3, 10, 25],
+                         "window_length":[10, 25, 101, 200],
+                         "smooth_method":["pyramidinal", "runmeans, coordinates"],
+                         "ref_subtract_use_mean_bounds":[True, False],
+                         "cluster_by_groups":[True, False],
+                         "cluster_references":[True, False],
+                         "k_obs_groups":[1],
+                         "max_centered_threshold":[3],
+                         "HMM":[True, False],
+                         "HMM_report_by":["subcluster", "cell", "consensus"],
+                         "HMM_type":["i6", "i3"],
+                         "BayesMaxPNormal":[0.3, 0.5, 0.7],
+                         "sim_method":["meanvar"],
+                         "sim_foreground":[True, False],
+                         "reassignCNVs":[True, False],
+                         "analysis_mode":["samples", "subclusters", "cells"],
+                         "tumor_subcluster_partition_method":["random_trees","qnorm"],
+                         "tumor_subcluster_pval":[0.05, 0.1, 0.2],
+                         "denoise": [True, False],
+                         "sd_amplifier":[1, 1.5, 2],
+                         "noise_logistic":[True, False],
+                         "num_threads":[50],
+                         "plot_steps":[True, False],
+                         "hspike_aggregate_normals":[True, False],
+                         "up_to_step":[100]}
 
     path_in, path_out = val_build_project()
     list_kwargs = grid_by_dict(kwargs_gridsearch)
