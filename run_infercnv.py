@@ -176,8 +176,10 @@ if __name__ == "__main__":
                          "hspike_aggregate_normals":[True, False],
                          "up_to_step":[100],
                          "precise_annotation":[True, False]}
+
     path_in, path_out = val_build_project()
     list_kwargs = grid_by_dict(kwargs_gridsearch)
+    list_kwargs = random.sample(list_kwargs, 1500)
     for kwarg_opt in list_kwargs:
         print(f"InferCNV (R) running with hyperparameters: {kwarg_opt}")
         run_r_infercnv(path_in, path_out, kwargs=kwarg_opt)
