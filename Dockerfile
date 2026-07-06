@@ -41,10 +41,7 @@ RUN cd JAGS-4.3.2 && \
 RUN R -e "install.packages(c('devtools', 'remotes', 'rjags'), repos='https://r-project.org')"
 RUN R -e "if (!requireNamespace('BiocManager', quietly = TRUE)) install.packages('BiocManager', repos = 'http://cran.rstudio.com/'); BiocManager::install('infercnv', ask=FALSE)"
 
-
 RUN yum install -y python3 python3-pip
-RUN yum install -y libreadline-dev
-RUN yum install -y r-base r-base-dev python3-dev python-setuptools lzma-dev libblas-dev liblapack-dev
 RUN pip install -r requirements.txt
 
 CMD ["python3", "/scratch/tmp/feiler/dbenchInferCNV_R/run_infercnv.py"]
