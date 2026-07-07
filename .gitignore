@@ -4,3 +4,4 @@ genome_data
 hyperparameters.txt
 app
 dbench_infercnvr_latest.sif
+JAGS-4.3.2
