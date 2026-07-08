@@ -35,12 +35,13 @@ RUN yum install -y curl libcurl-devel openssl openssl-devel
 RUN yum install -y python3 python3-pip python3-devel
 RUN pip install --no-cache-dir -r requirements.txt
 
+RUN mkdir /usr/src/jags
 RUN wget -O /tmp/jags.tar.gz https://sourceforge.net/projects/mcmc-jags/files/JAGS/4.x/Source/JAGS-4.3.2.tar.gz/download \
     && cd /tmp \
-    && tar -xf jags.tar.gz \
-    && cd JAGS-4.3.2 \
-    && ./configure --libdir=/usr/local/lib64 \
-    && make \
+    && tar -xvf jags.tar.gz -C /usr/src/jags --strip-components=1\
+    && cd /usr/src/jags \
+    && ./configure --prefix=/usr \
+    && make -j $(nproc) \
     && sudo make install
 
 
@@ -49,8 +50,7 @@ RUN wget -O /tmp/jags.tar.gz https://sourceforge.net/projects/mcmc-jags/files/JA
 RUN R -e "options(repos = c(CRAN = 'https://cloud.r-project.org')); install.packages('remotes')"
 
 RUN R -e "library(remotes)"  # verfication remotes
-RUN R -e 'remotes::install_github("mcmc-jags/rjags")'
-RUN R -e "library(rjags)"  # verfication jags
+RUN Rscript install_jags.R # verfication jags
 
 RUN R -e "install.packages('BiocManager', repos='https://cloud.r-project.org')"
 RUN R -e "install.packages('gplots', repos='https://cloud.r-project.org')"
