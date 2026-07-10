@@ -4,6 +4,7 @@ RUN sudo dnf -y update && \
     sudo dnf -y install \
     gsl-devel \
     fftw-devel \
+    R \
     R-core \
     R-devel \
     R-core-devel \
@@ -48,6 +49,8 @@ RUN sudo dnf -y update && \
     R-IRanges-devel \
     R-abind \
     R-S4Vectors \
+    R-generics \
+    R-covr \
     R-matrixStats \
     libpng-devel \
     libjpeg-turbo-devel \
@@ -76,14 +79,14 @@ RUN R -e "library(rjags)"
 RUN mkdir -p /scratch/tmp/feiler/dbenchInferCNV_R
 WORKDIR /scratch/tmp/feiler/dbenchInferCNV_R
 COPY . .
+RUN echo "options(repos = c(CRAN = 'https://r-project.org'))" >> /usr/lib64/R/etc/Rprofile.site
 RUN R -e "install.packages('BiocManager', repos='https://cloud.r-project.org', Ncpus=20)"
+RUN R -e "library(BiocManager)"
 RUN R -e "install.packages('gplots', repos='https://cloud.r-project.org', Ncpus=20)"
 RUN Rscript script_install.R
+RUN Rscript script_install2.R
 
 RUN dnf install -y python3 python3-pip python3-devel
 RUN pip install --no-cache-dir -r requirements.txt
-
-#RUN R -e "BiocManager::install('infercnv', ask=FALSE, update=TRUE)"
-#RUN R -e "library(infercnv)"  # verification infercnv
 
 CMD ["python3", "/scratch/tmp/feiler/dbenchInferCNV_R/run_infercnv.py"]
