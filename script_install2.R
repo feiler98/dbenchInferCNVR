@@ -1,0 +1,17 @@
+BiocManager::install("Biobase")
+library(Biobase)
+
+BiocManager::install("multtest")
+library(multtest)
+install.packages("statmod", repos='https://cloud.r-project.org', Ncpus=20)
+library(statmod)
+BiocManager::install("limma")
+library(limma)
+install.packages("locfit", repos='https://cloud.r-project.org', Ncpus=20)
+library(locfit)
+BiocManager::install("edgeR")
+library(edgeR)
+install.packages(c('RColorBrewer', 'futile.logger', 'ape', 'phyclust', 'fastcluster', 'parallelDist', 'dplyr', 'HiddenMarkov', 'ggplot2', 'coin', 'RANN', 'igraph', 'reshape2', 'fitdistrplus', 'future', 'Seurat', 'tidyr', 'gridExtra', 'argparse'), repos='https://cloud.r-project.org', Ncpus=20)
+
+BiocManager::install('infercnv')
+library(infercnv)
