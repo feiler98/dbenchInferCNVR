@@ -173,7 +173,7 @@ if __name__ == "__main__":
                          "denoise": [True, False],
                          "sd_amplifier":[1.5],
                          "noise_logistic":[True, False],
-                         "num_threads":[4],
+                         "num_threads":[50],
                          "plot_steps":[True, False],
                          "hspike_aggregate_normals":[True, False],
                          "up_to_step":[100],
